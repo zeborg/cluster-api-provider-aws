@@ -33,6 +33,7 @@ var (
 	opSystem          string
 	outputPrinter     string
 	ownerID           string
+	amiNameFormat     string
 )
 
 // ListAMICmd is a CLI command that will list AMIs from the default AWS account where AMIs are stored.
@@ -69,8 +70,8 @@ func ListAMICmd() *cobra.Command {
 				KubernetesVersion: kubernetesVersion,
 				OperatingSystem:   opSystem,
 				OwnerID:           ownerID,
-			},
-				"capa-ami-{{.BaseOS}}-{{.K8sVersion}}")
+				AMINameFormat:     amiNameFormat,
+			})
 			if err != nil {
 				return err
 			}
@@ -95,6 +96,8 @@ func ListAMICmd() *cobra.Command {
 	addKubernetesVersionFlag(newCmd)
 	addOutputFlag(newCmd)
 	addOwnerIDFlag(newCmd)
+	addAMINameFormat(newCmd)
+
 	return newCmd
 }
 
@@ -112,4 +115,8 @@ func addOutputFlag(c *cobra.Command) {
 
 func addOwnerIDFlag(c *cobra.Command) {
 	c.Flags().StringVarP(&ownerID, "owner-id", "", "", "The owner ID of the AWS account to be used for listing AMIs")
+}
+
+func addAMINameFormat(c *cobra.Command) {
+	c.Flags().StringVarP(&amiNameFormat, "ami-name-format", "", "", "The naming format of AMIs to be listed")
 }
