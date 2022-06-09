@@ -39,7 +39,7 @@ type ListInput struct {
 const lastNReleases = 3
 
 // List will create an AWSAMIList from a given ListInput.
-func List(input ListInput) (*amiv1.AWSAMIList, error) {
+func List(input ListInput, amiNameFormat string) (*amiv1.AWSAMIList, error) {
 	supportedOsList := []string{}
 	if input.OperatingSystem == "" {
 		supportedOsList = getSupportedOsList()
@@ -96,7 +96,7 @@ func List(input ListInput) (*amiv1.AWSAMIList, error) {
 		}
 		for _, version := range supportedVersions {
 			for _, os := range supportedOsList {
-				image, err := findAMI(imageMap, os, version)
+				image, err := findAMI(imageMap, os, version, amiNameFormat)
 				if err != nil {
 					return nil, err
 				}

@@ -69,7 +69,8 @@ func ListAMICmd() *cobra.Command {
 				KubernetesVersion: kubernetesVersion,
 				OperatingSystem:   opSystem,
 				OwnerID:           ownerID,
-			})
+			},
+				"capa-ami-{{.BaseOS}}-{{.K8sVersion}}")
 			if err != nil {
 				return err
 			}
