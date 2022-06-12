@@ -22,10 +22,7 @@ jobs:
 
     - name: Postsubmit Job
       run: |
-        make clusterawsadm
-        mv bin/clusterawsadm ci/ami/clusterawsadm
         cd ci/ami
-        chmod +x clusterawsadm
         git clone https://github.com/kubernetes-sigs/image-builder.git
         cd image-builder/images/capi
         make deps-ami

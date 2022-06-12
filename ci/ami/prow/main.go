@@ -2,21 +2,27 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"sigs.k8s.io/cluster-api-provider-aws/ci/custom"
-	"sigs.k8s.io/cluster-api-provider-aws/cmd/clusterawsadm/ami"
 )
 
 func main() {
+	cleanup := flag.Bool("cleanup", false, "Cleanup CAPA AMIs with 'test-' prefix after image-builder finishes building AMIs")
+	flag.Parse()
+
 	AMIBuildConfigFilename := os.Getenv("AMI_BUILD_CONFIG_FILENAME")
 	AMIBuildConfigDefaultsFilename := os.Getenv("AMI_BUILD_CONFIG_DEFAULTS")
 
 	ami_regions := os.Getenv("AMI_BUILD_REGIONS")
-	owner_id := os.Getenv("AMI_BUILD_REGIONS")
+	ownerID := os.Getenv("AWS_AMI_OWNER_ID")
 	supportedOS := strings.Split(os.Getenv("AMI_BUILD_SUPPORTED_OS"), ",")
 
 	dat, err := os.ReadFile(AMIBuildConfigFilename)
@@ -31,17 +37,69 @@ func main() {
 	err = json.Unmarshal(dat, defaultAMIBuildConfig)
 	custom.CheckError(err, "")
 
-	for _, v := range currentAMIBuildConfig.K8sReleases {
-		listByVersion, err := ami.List(ami.ListInput{
-			Region:            "",
-			KubernetesVersion: "",
-			OperatingSystem:   "",
-			OwnerID:           owner_id,
-		},
-			"capa-ami-{{.BaseOS}}-{{.K8sVersion}}")
-		custom.CheckError(err, "")
+	log.Println("Creating new session")
+	mySession := session.Must(session.NewSession())
+	log.Println("New session created successfully")
 
-		if len(listByVersion.Items) == 0 {
+	allRegions := []string{"ap-south-1", "eu-west-3", "eu-west-2", "eu-west-1", "ap-northeast-2", "ap-northeast-1", "sa-east-1", "ca-central-1",
+		"ap-southeast-1", "ap-southeast-2", "eu-central-1", "us-east-1", "us-east-2", "us-west-1", "us-west-2"}
+	allOS := []string{"amazon-2", "centos-7", "flatcar-stable", "ubuntu-18.04", "ubuntu-20.04"}
+	amiNamePrefixFormat := "capa-ami-%s-%s"
+	DefaultAMIOwnerID := "570412231501"
+
+	if ownerID == "" {
+		ownerID = DefaultAMIOwnerID
+	}
+
+	for _, v := range currentAMIBuildConfig.K8sReleases {
+		amiExists := false
+
+		for _, r := range allRegions {
+			log.Println("Info: Creating new instance of EC2 client with region", r)
+			svc := ec2.New(mySession, aws.NewConfig().WithRegion(r))
+			log.Println("Info: New instance of EC2 client with region", r, "created successfully ")
+
+			log.Println("Info: Checking if AMI for Kubernetes", v, "exists in region", r)
+			for _, os := range allOS {
+				amiNamePrefix := fmt.Sprintf(amiNamePrefixFormat, os, strings.TrimPrefix(v, "v"))
+
+				descImgInput := &ec2.DescribeImagesInput{
+					Owners: []*string{&ownerID},
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("owner-id"),
+							Values: []*string{aws.String(ownerID)},
+						},
+						{
+							Name:   aws.String("architecture"),
+							Values: []*string{aws.String("x86_64")},
+						},
+						{
+							Name:   aws.String("state"),
+							Values: []*string{aws.String("available")},
+						},
+						{
+							Name:   aws.String("virtualization-type"),
+							Values: []*string{aws.String("hvm")},
+						},
+					},
+				}
+				l, _ := svc.DescribeImages(descImgInput)
+
+				for _, img := range l.Images {
+					if strings.HasPrefix(*img.Name, amiNamePrefix) {
+						log.Println("Info: AMI for Kubernetes", v, "found in region", r)
+						amiExists = true
+						break
+					}
+				}
+			}
+			if amiExists {
+				break
+			}
+		}
+
+		if !amiExists {
 			log.Printf("Info: Building AMI for Kubernetes %s.", v)
 			kubernetes_semver := v
 			kubernetes_rpm_version := strings.TrimPrefix(v, "v") + "-0"
@@ -137,6 +195,57 @@ func main() {
 					}
 				default:
 					log.Println(fmt.Sprintf("Warning: Invalid OS %s. Skipping image building.", os))
+				}
+			}
+
+			if *cleanup {
+				for _, r := range allRegions {
+					log.Println("Info: Creating new instance of EC2 client with region", r)
+					svc := ec2.New(mySession, aws.NewConfig().WithRegion(r))
+					log.Println("Info: New instance of EC2 client with region", r, "created successfully ")
+
+					descImgInput := &ec2.DescribeImagesInput{
+						Owners: []*string{&ownerID},
+					}
+
+					log.Println("Info: Checking for temporary CAPA AMIs in", r)
+					l, _ := svc.DescribeImages(descImgInput)
+					ami_snap := map[string][]string{}
+
+					for _, img := range l.Images {
+						if strings.HasPrefix(*img.Name, "test-capa-ami-") {
+							snapshotList := []string{}
+							for _, dev := range img.BlockDeviceMappings {
+								ami_snap[*img.ImageId] = append(snapshotList, *dev.Ebs.SnapshotId)
+							}
+						}
+					}
+
+					for ami, snaps := range ami_snap {
+						deregImgInput := ec2.DeregisterImageInput{
+							ImageId: &ami,
+						}
+
+						log.Println("Info: Deregistering AMI:", ami)
+						_, err := svc.DeregisterImage(&deregImgInput)
+						if err != nil {
+							log.Fatal("Error:", err)
+						}
+						log.Println("Info: AMI", ami, "deregistered successfully")
+
+						for _, snap := range snaps {
+							delSnapInput := ec2.DeleteSnapshotInput{
+								SnapshotId: &snap,
+							}
+
+							log.Println("Info: Deleting snapshot:", snap)
+							_, err := svc.DeleteSnapshot(&delSnapInput)
+							if err != nil {
+								log.Fatal("Error:", err)
+							}
+							log.Println("Info: Snapshot", snap, "deleted successfully")
+						}
+					}
 				}
 			}
 		} else {

@@ -19,16 +19,13 @@ jobs:
 
     - name: Presubmit Job
       run: |
-        make clusterawsadm
-        mv bin/clusterawsadm ci/ami/clusterawsadm
         cd ci/ami
-        chmod +x clusterawsadm
         git clone https://github.com/kubernetes-sigs/image-builder.git
         cd image-builder/images/capi
         sed -i 's/capa-ami-/test-capa-ami-/' ./packer/ami/packer.json
         make deps-ami
         cd ../../..
-        go run prow/main.go
+        go run prow/main.go -cleanup
       env:
           AMI_BUILD_CONFIG_FILENAME: "AMIBuildConfig.json"
           AMI_BUILD_CONFIG_DEFAULTS: "AMIBuildConfigDefaults.json"
