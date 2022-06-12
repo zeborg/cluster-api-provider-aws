@@ -18,9 +18,12 @@ func Shell(command string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func CheckError(err error, stderr string) {
+func CheckError(err error, stderr, stdout string) {
 	if err != nil {
-		log.Printf("Error: %s", stderr)
+		log.Println(stdout)
+		if stderr != "" {
+			log.Printf("Error: %s", stderr)
+		}
 		log.Fatal(err)
 	}
 }
@@ -28,11 +31,11 @@ func CheckError(err error, stderr string) {
 func BuildReleaseVersion(ver string) ReleaseVersion {
 	verSplit := strings.Split(ver, ".")
 	major, err := strconv.Atoi(strings.ReplaceAll(verSplit[0], "v", ""))
-	CheckError(err, "")
+	CheckError(err, "", "")
 	minor, err := strconv.Atoi(verSplit[1])
-	CheckError(err, "")
+	CheckError(err, "", "")
 	patch, err := strconv.Atoi(verSplit[2])
-	CheckError(err, "")
+	CheckError(err, "", "")
 
 	return ReleaseVersion{
 		Major: major,

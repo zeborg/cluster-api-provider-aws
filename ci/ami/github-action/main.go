@@ -27,10 +27,10 @@ func main() {
 	var m2, m3 string
 	url := "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
 	k8sReleaseResponse, err := http.Get(url)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min1, err := ioutil.ReadAll(k8sReleaseResponse.Body)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min1Release := custom.BuildReleaseVersion(string(min1))
 	log.Print("Info: min1Release: Major ", min1Release.Major, ", Minor ", min1Release.Minor, ", Patch ", min1Release.Patch)
@@ -42,20 +42,20 @@ func main() {
 
 	url = fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/stable-%s.txt", m2)
 	k8sReleaseResponse, err = http.Get(url)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min2, err := ioutil.ReadAll(k8sReleaseResponse.Body)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min2Release := custom.BuildReleaseVersion(string(min2))
 	log.Print("Info: min2Release: Major ", min2Release.Major, ", Minor ", min2Release.Minor, ", Patch ", min2Release.Patch)
 
 	url = fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/stable-%s.txt", m3)
 	k8sReleaseResponse, err = http.Get(url)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min3, err := ioutil.ReadAll(k8sReleaseResponse.Body)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	min3Release := custom.BuildReleaseVersion(string(min3))
 	log.Print("Info: min3Release: Major ", min3Release.Major, ", Minor ", min3Release.Minor, ", Patch ", min3Release.Patch)
@@ -69,7 +69,7 @@ func main() {
 	}
 
 	latestAMIBuildConfigFileBytes, err := json.MarshalIndent(latestAMIBuildConfig, "", "  ")
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	AMIBuildConfigFilename := os.Getenv("AMI_BUILD_CONFIG_FILENAME")
 	dat, err := os.ReadFile(AMIBuildConfigFilename)
@@ -85,7 +85,7 @@ func main() {
 
 	currentAMIBuildConfig := new(custom.AMIBuildConfig)
 	err = json.Unmarshal(dat, currentAMIBuildConfig)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 	if !cmp.Equal(currentAMIBuildConfig, latestAMIBuildConfig) {
 		prCreated := Action(latestAMIBuildConfigFileBytes, AMIBuildConfigFilename)
 		if prCreated {
@@ -122,7 +122,7 @@ func Action(blobBytes []byte, AMIBuildConfigFilename string) bool {
 
 		if len(prList) == 0 {
 			_, err := client.Git.DeleteRef(ctx, OWNER, REPO, headRef)
-			custom.CheckError(err, "")
+			custom.CheckError(err, "", "")
 
 			CreateRef(client, ctx, baseRef, headRef)
 			log.Printf("Info: Recreated existing head reference: %s", headRef)
@@ -140,23 +140,23 @@ func Action(blobBytes []byte, AMIBuildConfigFilename string) bool {
 
 	// get the reference to the head branch
 	ref, _, err = client.Git.GetRef(ctx, OWNER, REPO, headRef)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// get the commit pointed by the head branch
 	parentCommit, _, err := client.Git.GetCommit(ctx, OWNER, REPO, *ref.Object.SHA)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// upload the base64 encoded blob for updated amibuildconfig to github server
 	blob, err := CreateBlob(client, ctx, "base64", blobBytes)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// get the tree pointed by the head branch
 	baseTree, _, err := client.Git.GetTree(ctx, OWNER, REPO, *parentCommit.Tree.SHA, true)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// create a new tree with the updated amibuildconfig
 	newTree, err := CreateTree(client, ctx, AMIBuildConfigFilename, "100644", *baseTree.SHA, *blob.SHA)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// create a new commit with our newly created tree
 	commitMsg := fmt.Sprintf("⚓️ Updating `%s`", AMIBuildConfigFilename)
@@ -166,30 +166,30 @@ func Action(blobBytes []byte, AMIBuildConfigFilename string) bool {
 		Parents: []*github.Commit{parentCommit},
 	}
 	commit, _, err := client.Git.CreateCommit(ctx, OWNER, REPO, &newCommit)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// update the head to point to our newly created commit
 	_, err = UpdateRef(client, ctx, ref, commit)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// create pr to update the amibuildconfig
 	prTitle := fmt.Sprintf("[CAPA-Action] ⚓️ Updating `%s`", AMIBuildConfigFilename)
 	prBody := fmt.Sprintf("Updated config:\n```json\n%s\n```", string(blobBytes))
 	prCreated, err := CreatePR(client, ctx, false, prTitle, prHeadRef, prBaseRef, prBody)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// add labels to the newly created pr
 	labels := []string{"ami-build-action"}
 	_, _, err = client.Issues.AddLabelsToIssue(ctx, OWNER, REPO, *prCreated.Number, labels)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// request reviewers for the newly created pr
 	_, err = RequestReviewers(client, ctx, *prCreated.Number)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	// add assignees to the newly created pr
 	_, _, err = client.Issues.AddAssignees(ctx, OWNER, REPO, *prCreated.Number, strings.Split(os.Getenv("CAPA_ACTION_PR_ASSIGNEES"), ","))
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	return true
 }
@@ -230,7 +230,7 @@ func CreateIssue(client *github.Client, ctx context.Context) (*github.Issue, err
 
 func CreateRef(client *github.Client, ctx context.Context, fromRef, toRef string) *github.Reference {
 	ref, _, err := client.Git.GetRef(ctx, OWNER, REPO, fromRef)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	newRef := github.Reference{
 		Ref:    &toRef,
@@ -238,7 +238,7 @@ func CreateRef(client *github.Client, ctx context.Context, fromRef, toRef string
 		Object: ref.Object,
 	}
 	refNew, _, err := client.Git.CreateRef(ctx, OWNER, REPO, &newRef)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	return refNew
 }

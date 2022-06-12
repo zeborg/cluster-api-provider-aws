@@ -26,16 +26,16 @@ func main() {
 	supportedOS := strings.Split(os.Getenv("AMI_BUILD_SUPPORTED_OS"), ",")
 
 	dat, err := os.ReadFile(AMIBuildConfigFilename)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 	currentAMIBuildConfig := new(custom.AMIBuildConfig)
 	err = json.Unmarshal(dat, currentAMIBuildConfig)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	dat, err = os.ReadFile(AMIBuildConfigDefaultsFilename)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 	defaultAMIBuildConfig := new(custom.AMIBuildConfigDefaults)
 	err = json.Unmarshal(dat, defaultAMIBuildConfig)
-	custom.CheckError(err, "")
+	custom.CheckError(err, "", "")
 
 	log.Println("Creating new session")
 	mySession := session.Must(session.NewSession())
@@ -123,7 +123,7 @@ func main() {
 					log.Println(fmt.Sprintf("Info: flags:  \"%s\"", flags))
 
 					stdout, stderr, err := custom.Shell(fmt.Sprintf("cd image-builder/images/capi && PACKER_FLAGS=\"%s\" make build-ami-%s", flags, os))
-					custom.CheckError(err, stderr)
+					custom.CheckError(err, stderr, stdout)
 					if stderr != "" {
 						log.Fatalf("Error: %s", stderr)
 					} else {
@@ -139,7 +139,7 @@ func main() {
 					log.Println(fmt.Sprintf("Info: flags:  \"%s\"", flags))
 
 					stdout, stderr, err := custom.Shell(fmt.Sprintf("cd image-builder/images/capi && PACKER_FLAGS=\"%s\" make build-ami-%s", flags, os))
-					custom.CheckError(err, stderr)
+					custom.CheckError(err, stderr, stdout)
 					if stderr != "" {
 						log.Fatalf("Error: %s", stderr)
 					} else {
@@ -155,7 +155,7 @@ func main() {
 					log.Println(fmt.Sprintf("Info: flags:  \"%s\"", flags))
 
 					stdout, stderr, err := custom.Shell(fmt.Sprintf("cd image-builder/images/capi && PACKER_FLAGS=\"%s\" make build-ami-%s", flags, os))
-					custom.CheckError(err, stderr)
+					custom.CheckError(err, stderr, stdout)
 					if stderr != "" {
 						log.Fatalf("Error: %s", stderr)
 					} else {
@@ -171,7 +171,7 @@ func main() {
 					log.Println(fmt.Sprintf("Info: flags:  \"%s\"", flags))
 
 					stdout, stderr, err := custom.Shell(fmt.Sprintf("cd image-builder/images/capi && PACKER_FLAGS=\"%s\" make build-ami-%s", flags, os))
-					custom.CheckError(err, stderr)
+					custom.CheckError(err, stderr, stdout)
 					if stderr != "" {
 						log.Fatalf("Error: %s", stderr)
 					} else {
@@ -187,7 +187,7 @@ func main() {
 					log.Println(fmt.Sprintf("Info: flags:  \"%s\"", flags))
 
 					stdout, stderr, err := custom.Shell(fmt.Sprintf("cd image-builder/images/capi && PACKER_FLAGS=\"%s\" make build-ami-%s", flags, os))
-					custom.CheckError(err, stderr)
+					custom.CheckError(err, stderr, stdout)
 					if stderr != "" {
 						log.Fatalf("Error: %s", stderr)
 					} else {
