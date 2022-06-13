@@ -55,9 +55,7 @@ func main() {
 		amiExists := false
 
 		for _, r := range allRegions {
-			log.Println("Info: Creating new instance of EC2 client with region", r)
 			svc := ec2.New(mySession, aws.NewConfig().WithRegion(r))
-			log.Println("Info: New instance of EC2 client with region", r, "created successfully ")
 
 			log.Println("Info: Checking if AMI for Kubernetes", v, "exists in region", r)
 			for _, os := range allOS {
@@ -84,9 +82,9 @@ func main() {
 						},
 					},
 				}
-				l, _ := svc.DescribeImages(descImgInput)
+				descImg, _ := svc.DescribeImages(descImgInput)
 
-				for _, img := range l.Images {
+				for _, img := range descImg.Images {
 					if strings.HasPrefix(*img.Name, amiNamePrefix) {
 						log.Println("Info: AMI for Kubernetes", v, "found in region", r)
 						amiExists = true
@@ -197,59 +195,55 @@ func main() {
 					log.Println(fmt.Sprintf("Warning: Invalid OS %s. Skipping image building.", os))
 				}
 			}
+		} else {
+			log.Printf("Info: AMI for Kubernetes %s already exists. Skipping image-builder.", v)
+		}
+	}
 
-			if *cleanup {
-				for _, r := range allRegions {
-					log.Println("Info: Creating new instance of EC2 client with region", r)
-					svc := ec2.New(mySession, aws.NewConfig().WithRegion(r))
-					log.Println("Info: New instance of EC2 client with region", r, "created successfully ")
+	if *cleanup {
+		log.Println("Info: Beginning temporary AMI cleanup")
+		for _, r := range allRegions {
+			svc := ec2.New(mySession, aws.NewConfig().WithRegion(r))
+			descImgInput := &ec2.DescribeImagesInput{
+				Owners: []*string{&ownerID},
+			}
 
-					descImgInput := &ec2.DescribeImagesInput{
-						Owners: []*string{&ownerID},
-					}
+			log.Println("Info: Checking for temporary CAPA AMIs in", r)
+			descImg, _ := svc.DescribeImages(descImgInput)
+			ami_snap := map[string][]string{}
 
-					log.Println("Info: Checking for temporary CAPA AMIs in", r)
-					l, _ := svc.DescribeImages(descImgInput)
-					ami_snap := map[string][]string{}
-
-					for _, img := range l.Images {
-						if strings.HasPrefix(*img.Name, "test-capa-ami-") {
-							snapshotList := []string{}
-							for _, dev := range img.BlockDeviceMappings {
-								ami_snap[*img.ImageId] = append(snapshotList, *dev.Ebs.SnapshotId)
-							}
-						}
-					}
-
-					for ami, snaps := range ami_snap {
-						deregImgInput := ec2.DeregisterImageInput{
-							ImageId: &ami,
-						}
-
-						log.Println("Info: Deregistering AMI:", ami)
-						_, err := svc.DeregisterImage(&deregImgInput)
-						if err != nil {
-							log.Fatal("Error:", err)
-						}
-						log.Println("Info: AMI", ami, "deregistered successfully")
-
-						for _, snap := range snaps {
-							delSnapInput := ec2.DeleteSnapshotInput{
-								SnapshotId: &snap,
-							}
-
-							log.Println("Info: Deleting snapshot:", snap)
-							_, err := svc.DeleteSnapshot(&delSnapInput)
-							if err != nil {
-								log.Fatal("Error:", err)
-							}
-							log.Println("Info: Snapshot", snap, "deleted successfully")
-						}
+			for _, img := range descImg.Images {
+				if strings.HasPrefix(*img.Name, "test-capa-ami-") {
+					snapshotList := []string{}
+					for _, dev := range img.BlockDeviceMappings {
+						ami_snap[*img.ImageId] = append(snapshotList, *dev.Ebs.SnapshotId)
 					}
 				}
 			}
-		} else {
-			log.Printf("Info: AMI for Kubernetes %s already exists. Skipping image building.", v)
+
+			for ami, snaps := range ami_snap {
+				deregImgInput := ec2.DeregisterImageInput{
+					ImageId: &ami,
+				}
+
+				_, err := svc.DeregisterImage(&deregImgInput)
+				if err != nil {
+					log.Fatal("Error:", err)
+				}
+				log.Println("Info: AMI", ami, "deregistered successfully")
+
+				for _, snap := range snaps {
+					delSnapInput := ec2.DeleteSnapshotInput{
+						SnapshotId: &snap,
+					}
+
+					_, err := svc.DeleteSnapshot(&delSnapInput)
+					if err != nil {
+						log.Fatal("Error:", err)
+					}
+					log.Println("Info: Snapshot", snap, "deleted successfully")
+				}
+			}
 		}
 	}
 }
