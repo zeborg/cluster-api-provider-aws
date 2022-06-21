@@ -1,10 +1,6 @@
 on:
-  push:
-    branches:
-      - 'main'
-    paths:
-      - '.github/workflows/*'
-      - hack/tools/ami/**'
+  schedule:
+  - cron: '0 */1 * * *'
 
 jobs:
   check_k8s_releases:
