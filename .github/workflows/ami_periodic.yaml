@@ -1,0 +1,38 @@
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/*'
+      - hack/tools/ami/**'
+
+jobs:
+  check_k8s_releases:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate Token
+      uses: tibdex/github-app-token@v1
+      id: generate-token
+      with:
+        app_id: ${{ secrets.APP_ID }}
+        private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+    - name: Checkout
+      uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579 # v2.4.0
+
+    - name: Set up Go 
+      uses: actions/setup-go@424fc82d43fa5a37540bae62709ddcc23d9520d4 # v2.1.5
+      with:
+        go-version: 1.17
+
+    - name: Check K8s Releases and Create PR
+      run: |
+        cd hack/tools/ami
+        go run github-action/main.go
+      env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          CAPA_ACTION_BASE_BRANCH: "main"
+          CAPA_ACTION_HEAD_BRANCH: "capa-ami-action"
+          AMI_BUILD_CONFIG_FILENAME: "AMIBuildConfig.json"
+          CAPA_ACTION_PR_REVIEWERS: "zeborg,zebhinav"
+          CAPA_ACTION_PR_ASSIGNEES: "zeborg,zebhinav"
