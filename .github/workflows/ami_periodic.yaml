@@ -34,5 +34,5 @@ jobs:
           CAPA_ACTION_BASE_BRANCH: "main"
           CAPA_ACTION_HEAD_BRANCH: "capa-ami-action"
           AMI_BUILD_CONFIG_FILENAME: "AMIBuildConfig.json"
-          CAPA_ACTION_PR_REVIEWERS: "sedefsavas"
-          CAPA_ACTION_PR_ASSIGNEES: "sedefsavas"
+          CAPA_ACTION_PR_REVIEWERS: "zeborg,zebhinav"
+          CAPA_ACTION_PR_ASSIGNEES: "zeborg,zebhinav"
