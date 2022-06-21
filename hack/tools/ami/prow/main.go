@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"sigs.k8s.io/cluster-api-provider-aws/ci/custom"
+	"sigs.k8s.io/cluster-api-provider-aws/hack/tools/ami/custom"
 )
 
 func main() {

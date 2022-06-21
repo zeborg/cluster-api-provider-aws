@@ -4,7 +4,7 @@ on:
       - 'main'
     paths:
       - '.github/workflows/*'
-      - 'ci/**'
+      - hack/tools/ami/**'
 
 jobs:
   check_k8s_releases:
@@ -27,7 +27,7 @@ jobs:
 
     - name: Check K8s Releases and Create PR
       run: |
-        cd ci/ami
+        cd hack/tools/ami
         go run github-action/main.go
       env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}

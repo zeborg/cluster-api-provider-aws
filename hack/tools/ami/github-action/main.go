@@ -15,7 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v42/github"
 	"golang.org/x/oauth2"
-	"sigs.k8s.io/cluster-api-provider-aws/ci/custom"
+	"sigs.k8s.io/cluster-api-provider-aws/hack/tools/ami/custom"
 )
 
 var (
@@ -260,7 +260,7 @@ func CreateBlob(client *github.Client, ctx context.Context, encoding string, blo
 }
 
 func CreateTree(client *github.Client, ctx context.Context, filename string, mode string, baseSHA, blobSHA string) (*github.Tree, error) {
-	treePath := "ci/ami/" + filename
+	treePath := "hack/tools/ami/" + filename
 	treeMode := "100644"
 	newTreeEntry := github.TreeEntry{
 		Path: &treePath,

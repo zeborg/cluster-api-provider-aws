@@ -1,4 +1,4 @@
-module sigs.k8s.io/cluster-api-provider-aws/ci
+module sigs.k8s.io/cluster-api-provider-aws/hack/tools/ami
 
 go 1.17
 

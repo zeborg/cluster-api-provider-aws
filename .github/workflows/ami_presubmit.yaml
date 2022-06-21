@@ -3,7 +3,7 @@ on:
     branches:
       - 'main'
     paths:
-      - 'ci/ami/AMIBuildConfig.json'
+      - 'hack/tools/ami/AMIBuildConfig.json'
 
 jobs:
   presubmit:
@@ -19,7 +19,7 @@ jobs:
 
     - name: Presubmit Job
       run: |
-        cd ci/ami
+        cd hack/tools/ami
         git clone https://github.com/kubernetes-sigs/image-builder.git
         cd image-builder/images/capi
         sed -i 's/capa-ami-/test-capa-ami-/' ./packer/ami/packer.json
